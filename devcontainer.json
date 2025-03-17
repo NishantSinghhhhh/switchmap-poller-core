@@ -1,0 +1,14 @@
+{
+    "name": "Switchmap Poller Devcontainer",
+    "dockerComposeFile": "docker-compose.devcontainer.yaml",
+    "service": "poller",
+    "workspaceFolder": "/workspace",
+    "remoteUser": "switchmap",
+    "features": {},
+    "postCreateCommand": "pip install --no-cache-dir -r requirements.txt",
+    "extensions": [
+      "ms-python.python",
+      "ms-azuretools.vscode-docker"
+    ]
+  }
+  

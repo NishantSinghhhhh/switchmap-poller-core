@@ -1,0 +1,49 @@
+version: "3.8"
+
+services:
+  poller:
+    build:
+      context: .
+      dockerfile: poller.containerfile
+    volumes:
+      - ..:/workspace:cached
+    environment:
+      - PYTHONUNBUFFERED=1
+      - API_URL=http://server:7000/graphql
+    command: ["python", "-m", "switchmap.poller"]
+    networks:
+      - switchmap-network
+    depends_on:
+      - db
+      - server
+
+  db:
+    image: postgres:14
+    container_name: switchmap-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: switchmap
+    ports:
+      - "5432:5432"
+    networks:
+      - switchmap-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  server:
+    image: switchmap-server:latest
+    restart: always
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgres://postgres:password@db:5432/switchmap
+    networks:
+      - switchmap-network
+
+networks:
+  switchmap-network:
+    driver: bridge
