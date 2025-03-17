@@ -1,31 +1,42 @@
 version: "3.8"
 
 services:
-  poller:
-    build:
-      context: .
-      dockerfile: poller.containerfile
-    volumes:
-      - ..:/workspace:cached
-    environment:
-      - PYTHONUNBUFFERED=1
-      - CORE_API_URL=http://core:7000/process-data  # API call to Core instead of Server
-    command: ["python", "-m", "switchmap.poller"]
-    networks:
-      - switchmap-network
-    depends_on:
-      - core  # Poller needs Core to be running to send data
-
   core:
     build:
       context: .
       dockerfile: core.containerfile
-    restart: always
+    container_name: switchmap-core
+    user: "${API_UID}:${API_GID}"
+    volumes:
+      - .:/home/switchmap-core/core
+      - /home/switchmap-core/core/.venv
     environment:
       - PYTHONUNBUFFERED=1
-      - POLLER_API_URL=http://poller:7000/data # (if Core needs to communicate back to Poller)
+      - API_URL=http://server:7000/graphql  # Core sends data to Server via GraphQL
     networks:
       - switchmap-network
+
+  server:
+    build:
+      context: .
+      dockerfile: server.containerfile
+    container_name: switchmap-server
+    user: "${API_UID}:${API_GID}"
+    volumes:
+      - .:/home/switchmap-server/server
+      - /home/switchmap-server/server/node_modules
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgres://postgres:password@db:5432/switchmap
+    ports:
+      - "7000:7000"
+    networks:
+      - switchmap-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 networks:
   switchmap-network:
