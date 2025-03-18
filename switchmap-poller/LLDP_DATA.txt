@@ -1,0 +1,16 @@
+// LLDP Data Collection from Switches (via SNMP)
+const lldpData = {
+  // Local interface details (Switch side)
+  localInterface: {
+    ifname: "GigabitEthernet0/1",      // Local interface name
+    ifdescr: "Uplink port to Switch-B" // Local interface description
+  },
+
+  // Remote Neighbor Device Information
+  remoteDevice: {
+    lldpRemSysName: "Switch-B",                 // Remote device's system name
+    lldpRemPortDesc: "GigabitEthernet0/24",     // Neighbor device's connected port
+    lldpRemSysDesc: "Cisco Catalyst 2960-X",    // Remote device description (vendor/model)
+    lldpRemSysCapEnabled: ["Bridge", "Router"]  // Remote device capabilities enabled
+  }
+};
