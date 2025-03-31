@@ -1,0 +1,66 @@
+def device(poll, post=True):
+    """Poll a single device for data and create YAML files.
+
+    Args:
+        poll: _META object containing zone, hostname, and configuration.
+        post: If True, I will post the data; otherwise, I print it.
+
+    Returns:
+        None
+    """
+    # I initialize key variables
+    hostname = poll.hostname
+    zone = poll.zone
+    config = poll.config
+
+    # I do nothing if the skip file exists
+    skip_file = files.skip_file(AGENT_POLLER, config)
+    if os.path.isfile(skip_file) is True:
+        log_message = (
+            "Skip file {} found. Aborting poll for {} in zone \"{}\". A daemon "
+            "shutdown request was probably requested".format(skip_file, hostname, zone)
+        )
+        log.log2debug(1041, log_message)
+        return
+
+    # I proceed only if the hostname is valid
+    if bool(hostname) and isinstance(hostname, str) and hostname.lower() != "none":
+        # I instantiate the Poll object (it must provide a poll_oid method)
+        poll_obj = poller.Poll(hostname)
+
+        # I define the OIDs for each category (these could also come from configuration)
+        FREQUENT_OIDS = [
+            '1.3.6.1.2.1.2.2.1.8',  # Interface status, for example
+            '1.3.6.1.2.1.4.22.1.2'   # MAC & IP tables, for example
+        ]
+        RARE_OIDS = [
+            '1.3.6.1.2.1.1.1.0',  # Device info, for example
+            '1.3.6.1.2.1.1.5.0'   # Interface descriptions, for example
+        ]
+
+        # I poll OIDs conditionally based on their categories.
+        # The helper function poll_oid_category checks if the required time has elapsed 
+        # and compares with cached values.
+        frequent_data = poll_oid_category('frequent', FREQUENT_OIDS, poll_obj.poll_oid)
+        rare_data = poll_oid_category('rare', RARE_OIDS, poll_obj.poll_oid)
+
+        # I merge the two sets of data (frequent data takes precedence if there is overlap)
+        snmp_data = {**rare_data, **frequent_data}
+
+        # I process the SNMP data if it is valid
+        if bool(snmp_data) and isinstance(snmp_data, dict):
+            _device = udevice.Device(snmp_data)
+            data = _device.process()
+            data["misc"]["zone"] = zone
+
+            if bool(post) is True:
+                # I update the database tables with the polled data
+                rest.post(API_POLLER_POST_URI, data, config)
+            else:
+                from pprint import pprint
+                pprint(data)
+        else:
+            log_message = (
+                "Device {} returns no data. Check your connectivity and/or SNMP configuration".format(hostname)
+            )
+            log.log2debug(1025, log_message)
